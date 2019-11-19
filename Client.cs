@@ -22,48 +22,62 @@ namespace client
         MENU_MODIFIERS,
         MENU_WEAPONS,
         MENU_PLAYERLIST,
-        MENU_PLAYERLIST_DETAILS,
-        MENU_SPAWN_PED,
+        MENU_PLAYERLIST_DETAILS
     };
 
     public class Client : BaseScript
     {
         public Client()
         {
-            Tick += DoTick;
-            Tick += Noclip.Tick;
-            Tick += Toast.Tick;
-            Tick += GamerTag.Tick;
+            Tick += FirstTick;
         }
 
-        static bool firstTick = true;
-
         public static Vector3 SpawnLocation;
+        public static string SpawnModel;
 
-        private static async Task DoTick()
+        async Task FirstTick()
         {
-            if (firstTick)
+            await Delay(500);
+
+            SpawnLocation = new Vector3(-262.849f, 793.404f, 118.587f);
+
+            if (Storage.TryGet("SpawnLocation", out Vector3 spawnLocation))
             {
-                await Delay(500);
-
-                //await ChangeModel.SetModel("a_c_fox_01");
-
-                SpawnLocation = Storage.Get<Vector3>("SpawnLocation");
-
-                if (Vector3.Distance(SpawnLocation, new Vector3(0f, 0f, 0f)) < 10.0f)
-                {
-                    SpawnLocation = new Vector3(-262.849f, 793.404f, 118.587f);
-                    Storage.Set("SpawnLocation", SpawnLocation);
-                }
-
-                Function.Call(Hash.NETWORK_SET_FRIENDLY_FIRE_OPTION, true);
-                Function.Call(Hash._SET_MINIMAP_REVEALED, true);
-                Function.Call(Hash.SET_ENTITY_COORDS, PlayerPedId(), SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z, 1, 0, 0, 1);
-                Function.Call(Hash.NETWORK_SET_FRIENDLY_FIRE_OPTION, true);
-
-                firstTick = false;
+                SpawnLocation = spawnLocation;
             }
 
+            SpawnModel = "player_zero";
+
+            if (Storage.TryGet("SpawnModel", out string spawnModel))
+            {
+                SpawnModel = spawnModel;
+
+                await Menus.ChangeModel.SetModel(spawnModel, false);
+            }
+
+            if (!Storage.TryGet("NewMenuBindWarning", out int seen))
+            {
+                Scripts.Toast.AddToast("The default menu binding has changed from M to L.", 25000, 0.18f, 0.05f);
+                Storage.Set("NewMenuBindWarning", 1);
+            }
+
+            Function.Call(Hash.NETWORK_SET_FRIENDLY_FIRE_OPTION, true);
+            Function.Call(Hash._SET_MINIMAP_REVEALED, true);
+            Function.Call(Hash.SET_ENTITY_COORDS, PlayerPedId(), SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z, 1, 0, 0, 1);
+
+            Tick -= FirstTick;
+
+            Tick += BaseTick;
+            Tick += Scripts.Noclip.Tick;
+            Tick += Scripts.Toast.Tick;
+            Tick += Scripts.GamerTag.Tick;
+            Tick += Scripts.DeathScreen.Tick;
+            Tick += Drawing.BoolCallbacks;
+            //Tick += Commands.DrawTexture;
+        }
+
+        private static async Task BaseTick()
+        {
             Function.Call((Hash)0x4759cc730f947c81); // ped pop enable  
             Function.Call((Hash)0x1ff00db43026b12f); // veh?
 
@@ -71,8 +85,6 @@ namespace client
 
             if (!pauseActive)
             {
-                Keyboard.DisableControlActionWrap(2, Control.Map, true);
-
                 if (Globals.g_menu_subMenu != MenuId.MENU_NOTOPEN)
                 {
                     Keyboard.DisableControlActionWrap(2, Control.VehNextRadioTrack, true);
@@ -93,19 +105,25 @@ namespace client
                     Keyboard.DisableControlActionWrap(2, Control.VehSelectPrevWeapon, true);
                     Keyboard.DisableControlActionWrap(2, Control.SelectWeaponSpecial, true);
                     Keyboard.DisableControlActionWrap(2, Control.SelectWeaponUnarmed, true);
+
+                    Function.Call(Hash.HIDE_HUD_AND_RADAR_THIS_FRAME);
                 }
 
-                if (!Noclip.Enabled)
+                if (!Scripts.Noclip.Enabled)
                 {
                     Keyboard.MonitorKeys();
                 }
             }
             else
             {
-                Noclip.Enabled = false;
+                Scripts.Noclip.Enabled = false;
             }
 
             Globals.g_menu_optionCount = 0;
+
+            bool applyStyle = Globals.g_menu_subMenu != MenuId.MENU_NOTOPEN;
+            
+            if (applyStyle) Drawing.StyleMenu();
 
             switch (Globals.g_menu_subMenu)
             {
@@ -126,7 +144,7 @@ namespace client
                     break;
 
                 case MenuId.MENU_MODIFIERS:
-                    await Menus.Modifiers.Draw();
+                    await Menus.TimecycModifiers.Draw();
                     break;
 
                 case MenuId.MENU_WEAPONS:
@@ -141,13 +159,11 @@ namespace client
                     await Menus.PlayerDetails.Draw();
                     break;
 
-                case MenuId.MENU_SPAWN_PED:
-                    await Menus.SpawnPed.Draw();
-                    break;
-
                 default:
                     break;
             }
+
+            if (applyStyle) Drawing.StyleSelectedOption();
 
             await Frame.RunFunctions();
 

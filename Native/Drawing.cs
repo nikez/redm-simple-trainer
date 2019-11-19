@@ -11,11 +11,22 @@ namespace client
 {
     internal class Drawing : Globals
     { 
+        internal static void CorrectAspectRatio(ref float x, ref float y)
+        {
+            const float height = 1080f;
+            float ratio = 16f / 9f;
+            var width = height * ratio;
+
+            x = x / width * 1000;
+            y = y / height * 1000;
+        }
+
         internal static void DrawText(string text, int font, float x, float y, float scaleX, float scaleY, int r, int g, int b, int a, bool center = false)
         {
             Function.Call(Hash.SET_TEXT_SCALE, scaleX, scaleY);
             Function.Call((Hash)0x50a41ad966910f03, r, g, b, a);
             Function.Call(Hash.SET_TEXT_CENTRE, center);
+            Function.Call((Hash)0xADA9255D, font);
             // LITERAL_STRING, PLAYER_STRING
             Function.Call(Hash._DRAW_TEXT, Function.Call<long>(Hash._CREATE_VAR_STRING, 10, "LITERAL_STRING", text), x, y);
         }
@@ -44,7 +55,7 @@ namespace client
         internal static void SetMenuTitle(string title, string subtitle)
         {
             DrawText(title, g_titleTextFont, 0.25f / 2, 0.065f, 0.75f, 0.75f, g_titleTextRed, g_titleTextGreen, g_titleTextBlue, g_titleTextAlpha, true);
-            DrawText(subtitle, 1, 0.25f / 2, 0.105f, 0.50f, 0.40f, g_titleTextRed, g_titleTextGreen, g_titleTextBlue, g_titleTextAlpha, true);
+            DrawText(subtitle, g_optionsFont, 0.25f / 2, 0.105f, 0.50f, 0.40f, g_titleTextRed, g_titleTextGreen, g_titleTextBlue, g_titleTextAlpha, true);
         }
 
         private static readonly int maxOptionCount = 18;
@@ -272,7 +283,16 @@ namespace client
 
         internal static int AddMenuOption(string option, MenuId submenu)
         {
+            float sizeX = 0.030f;
+            float sizeY = sizeX;
+
+            CorrectAspectRatio(ref sizeX, ref sizeY);
+
+            float x = g_menuTextWidth + (sizeX / 2);
+            float y = ((g_menu_optionCount + 1) * 0.035f + 0.126f) + sizeY / 2;
+
             int count = AddMenuEntry(option);
+            DrawTexture("pausemenu_textures", "SELECTION_ARROW_RIGHT", x, y, sizeX, sizeY, 0f, g_optionsRed, g_optionsGreen, g_optionsBlue, g_optionsAlpha, true);
 
             if (g_menu_currentOption == g_menu_optionCount && g_menu_optionPress)
             {
@@ -339,58 +359,102 @@ namespace client
             Keyboard.DisableControlActionWrap(2, Control.MultiplayerInfo, true);
             Keyboard.DisableControlActionWrap(2, Control.Phone, true);
 
-            float width = 0.25f;
-
             // background box
-            DrawRect(0.25f / 2, 1.0f / 2, 0.25f, 1.0f, 0, 0, 0, 200);
+            //DrawRect(0.25f / 2, 1.0f / 2, 0.25f, 1.0f, 0, 0, 0, 200);
+            DrawTexture("menu_textures", "translate_bg_1a", 0.25f / 2, 1.0f / 2, 0.25f, 1.0f, 0.0f, 0, 0, 0, 200, true);
 
-            float fromX = width / 2.0f;
+            // title box
+            DrawTexture("menu_textures", "translate_bg_1a", g_menuTextLeft, 0.05f + (0.1f / 2), g_menuTextWidth + 0.02f, 0.1f, 0.0f, 203, 16, 16, 100, true);
+        }
+
+        internal static void StyleSelectedOption()
+        {
+            string selectedTxd = "boot_flow";
+            string selectedTex = "SELECTION_BOX_BG_1D";
+
+            activeY = DiffTrack(((g_menu_currentOption * 0.035f) + 0.14f), activeY, 15.0f, Function.Call<float>(Hash.GET_FRAME_TIME, new InputArgument[0]));
 
             if (g_menu_optionCount > maxOptionCount)
             {
                 if (g_menu_currentOption > maxOptionCount)
                 {
-                    DrawRect(fromX, ((maxOptionCount * 0.035f) + 0.1415f), width, 0.035f, g_activeRed, g_activeGreen, g_activeBlue, g_activeOpacity);
+                    activeY = ((maxOptionCount * 0.035f) + 0.1415f);
 
-                    DrawRect(fromX, 0.156f, width, 0.005f, g_indicatorRed, g_indicatorGreen, g_indicatorBlue, g_indicatorAlpha);
+                    //DrawRect(fromX, ((maxOptionCount * 0.035f) + 0.1415f), width, 0.035f, g_activeRed, g_activeGreen, g_activeBlue, g_activeOpacity);
+                    DrawTexture(selectedTxd, selectedTex, g_menuTextLeft, activeY, g_menuTextWidth, 0.035f, 0.0f, g_activeRed, g_activeGreen, g_activeBlue, g_activeOpacity, true);
+
+                    DrawRect(g_menuTextLeft, 0.156f, g_menuTextWidth, 0.005f, g_indicatorRed, g_indicatorGreen, g_indicatorBlue, g_indicatorAlpha);
                 }
                 else
                 {
-                    DrawRect(fromX, ((g_menu_currentOption * 0.035f) + 0.1415f), width, 0.035f, g_activeRed, g_activeGreen, g_activeBlue, g_activeOpacity);
+                    //DrawRect(fromX, ((g_menu_currentOption * 0.035f) + 0.1415f), width, 0.035f, g_activeRed, g_activeGreen, g_activeBlue, g_activeOpacity);
+                    DrawTexture(selectedTxd, selectedTex, g_menuTextLeft, activeY, g_menuTextWidth, 0.035f, 0.0f, g_activeRed, g_activeGreen, g_activeBlue, g_activeOpacity, true);
 
-                    DrawRect(fromX, 0.156f, width, 0.005f, g_indicatorRed, g_indicatorGreen, g_indicatorBlue, g_indicatorAlpha);
+                    DrawRect(g_menuTextLeft, 0.156f, g_menuTextWidth, 0.005f, g_indicatorRed, g_indicatorGreen, g_indicatorBlue, g_indicatorAlpha);
                 }
+
                 if (g_menu_currentOption != g_menu_optionCount)
                 {
-                    DrawRect(fromX, 0.79f, width, 0.005f, g_indicatorRed, g_indicatorGreen, g_indicatorBlue, g_indicatorAlpha);
+                    DrawRect(g_menuTextLeft, 0.79f, g_menuTextWidth, 0.005f, g_indicatorRed, g_indicatorGreen, g_indicatorBlue, g_indicatorAlpha);
                 }
             }
             else
             {
-                activeY = DiffTrack(((g_menu_currentOption * 0.035f) + 0.1415f), activeY, 15.0f, Function.Call<float>(Hash.GET_FRAME_TIME, new InputArgument[0]));
-
-                DrawRect(fromX, activeY, width, 0.035f, g_activeRed, g_activeGreen, g_activeBlue, g_activeOpacity);
+                //DrawRect(fromX, activeY, width, 0.035f, g_activeRed, g_activeGreen, g_activeBlue, g_activeOpacity);
+                DrawTexture(selectedTxd, selectedTex, g_menuTextLeft, activeY, g_menuTextWidth, 0.035f, 0.0f, g_activeRed, g_activeGreen, g_activeBlue, g_activeOpacity, true);
             }
         }
 
-        internal static int AddBool(string option, ref bool value, bool msg = true)
+        static Dictionary<string, Action<bool>> boolCallbacks = new Dictionary<string, Action<bool>>();
+
+        internal static async Task BoolCallbacks()
+        {
+            foreach (var cb in boolCallbacks)
+            {
+                cb.Value?.Invoke(true);
+            }
+
+            await Task.FromResult(0);
+        }
+
+        internal static int AddBool(string option, ref bool value, bool msg = true, Action<bool> cb = null)
         {
             int count;
 
+            float sizeX = 0.030f;
+            float sizeY = sizeX;
+
+            CorrectAspectRatio(ref sizeX, ref sizeY);
+
+            float x = g_menuTextWidth + (sizeX / 2);
+            float y = ((g_menu_optionCount + 1) * 0.035f + 0.126f) + sizeY / 2;
+
+            count = AddMenuEntry(option);
+            DrawTexture("generic_textures", "tick_box", x, y, sizeX, sizeY, 0, 255, 255, 255, 255, true);
+
             if (value)
             {
-                count = AddMenuEntry($"{option}: ~b~On");
+                if (!boolCallbacks.ContainsKey(option))
+                {
+                    boolCallbacks.Add(option, cb);
+                }
+
+                DrawTexture("generic_textures", "tick", x, y, sizeX, sizeY, 0, 203, 16, 16, 255, true);
             }
             else
             {
-                count = AddMenuEntry($"{option}: ~r~Off");
+                if (boolCallbacks.ContainsKey(option))
+                {
+                    cb?.Invoke(false);
+                    boolCallbacks.Remove(option);
+                }
             }
 
             if (g_menu_currentOption == g_menu_optionCount && g_menu_optionPress)
             {
                 value = !value;
 
-                if (msg) Toast.AddToast($"{option} is now {value}!", 3000, 0.25f + (0.3f / 2), GetCurrentActiveY());
+                if (msg) Scripts.Toast.AddToast($"{option} is now {value}!", 3000, 0.25f + (0.3f / 2), GetCurrentActiveY());
             }
 
             return count;

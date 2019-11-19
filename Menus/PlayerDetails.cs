@@ -20,11 +20,8 @@ namespace client.Menus
             int tpToPlayer = AddMenuEntry("Teleport to player");
             int tpToVeh = AddMenuEntry("Teleport to vehicle");
 
-            StyleMenu();
-
             int pedId = Function.Call<int>(Hash.PLAYER_PED_ID);
             int targetPed = Function.Call<int>(Hash.GET_PLAYER_PED, SelectedPlayer);
-            Vector3 playerPos = Function.Call<Vector3>(Hash.GET_ENTITY_COORDS, pedId, 0);
             Vector3 targetPos = Function.Call<Vector3>(Hash.GET_ENTITY_COORDS, targetPed, 0);
             int targetVeh = Function.Call<int>(Hash.GET_VEHICLE_PED_IS_USING, targetPed);
 
@@ -39,7 +36,7 @@ namespace client.Menus
                     Function.Call(Hash.SET_ENTITY_COORDS, pedId, targetPos.X, targetPos.Y, targetPos.Z, 1, 0, 0, 1);
                 }
 
-                Toast.AddToast($"Teleported to {SelectedPlayerName}!", 3000, 0.25f + (0.3f / 2), GetCurrentActiveY());
+                Scripts.Toast.AddToast($"Teleported to {SelectedPlayerName}!", 3000, 0.25f + (0.3f / 2), GetCurrentActiveY());
             }
 
             if (IsEntryPressed(tpToVeh))
@@ -72,7 +69,7 @@ namespace client.Menus
                     }
                 }
 
-                Toast.AddToast($"Teleported to {SelectedPlayerName}'s vehicle!", 3000, 0.25f + (0.3f / 2), GetCurrentActiveY());
+                Scripts.Toast.AddToast($"Teleported to {SelectedPlayerName}'s vehicle!", 3000, 0.25f + (0.3f / 2), GetCurrentActiveY());
             }
 
             await Task.FromResult(0);
